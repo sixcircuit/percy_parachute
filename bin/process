@@ -1,0 +1,164 @@
+#!/usr/bin/env node
+
+const jimp = require('jimp');
+const path = require('path');
+const fs = require('fs');
+
+const _timestamp = Date.now();
+
+const root = function(...args){
+   return path.join(path.normalize(__dirname), "..", ...args);
+}
+
+fs.mkdirSync(root("build"), { recursive: true });
+
+const sin = function(d){ return Math.sin(d * Math.PI / 180); }
+const cos = function(d){ return Math.cos(d * Math.PI / 180); }
+
+const p = function(...args){ console.log(...args); }
+
+function do_circle(cx, cy, r, slices, plotter){
+   const step = (360 / slices)
+   for(let t = 0; t < 360; t += step){
+      const x = cx + r * cos(t);
+      const y = cy + r * sin(t);
+      plotter(parseInt(Math.round(x)), parseInt(Math.round(y)));
+   }
+}
+
+function filter(img){
+   img.scan(0, 0, img.bitmap.width, img.bitmap.height, function(x, y, idx) {
+      // do your stuff..
+      // x, y is the position of this pixel on the image
+      // idx is the position start position of this rgba tuple in the bitmap Buffer
+      // this is the image
+
+      let red = this.bitmap.data[idx + 0];
+      let green = this.bitmap.data[idx + 1];
+      let blue = this.bitmap.data[idx + 2];
+      let alpha = this.bitmap.data[idx + 3];
+
+      let red_ratio = (red / (red + green + blue));
+      // p("red_ratio:", red_ratio);
+
+      if(red_ratio > 0.38){
+         red = 255;
+         blue = 255;
+         green = 255;
+      }else{
+         red = 0;
+         blue = 0;
+         green = 0;
+      }
+      this.bitmap.data[idx + 0] = red;
+      this.bitmap.data[idx + 1] = green;
+      this.bitmap.data[idx + 2] = blue;
+   });
+}
+
+function draw_samples(img, center, radii, slices){
+   img = img.clone();
+   radii.forEach(function(r, ci){
+      do_circle(center.x, center.y, r, slices, function(x, y){
+         img.setPixelColor(jimp.rgbaToInt(0, 0, 0, 255), x, y);
+         img.setPixelColor(jimp.rgbaToInt(0, 0, 255, 255), x+1, y);
+         img.setPixelColor(jimp.rgbaToInt(0, 0, 255, 255), x, y+1);
+         img.setPixelColor(jimp.rgbaToInt(0, 0, 255, 255), x+1, y+1);
+      });
+   });
+   img.write(root(`build/output.${_timestamp}.samples.jpg`));
+}
+
+async function main(){
+
+   const center = { x: 444, y: 347 };
+   let radii = [58, 100, 150, 195];
+   const slices = 90;
+
+   const img = await jimp.read(root("img/parachute_00.jpg"));
+
+   // img.getPixelColor(x, y); // returns the colour of that pixel e.g. 0xFFFFFFFF
+   // img.setPixelColor(hex, x, y); // sets the colour of that pixel
+
+   img.write(root(`build/output.${_timestamp}.source.jpg`));
+
+   draw_samples(img, center, radii, slices);
+
+   filter(img);
+
+   img.write(root(`build/output.${_timestamp}.filter.jpg`));
+
+   const bits = [];
+   const circles = [];
+
+   radii = [radii.pop()];
+
+   const data = [];
+
+   for(let i = 85; i < 100; i++){
+      const current = [];
+      data.push({ slices: i, data: current });
+
+      radii.forEach(function(r, ci){
+         circles.push([]);
+         do_circle(center.x, center.y, r, slices, function(x, y){
+            let color = img.getPixelColor(x, y);
+            color = jimp.intToRGBA(color);
+            const bit = color.r > 0 ? 1 : 0;
+            bits.push(bit);
+            current.push(bit);
+            circles[ci].push(bit);
+         })
+      })
+   }
+   // console.dir(bits);
+   // console.dir(circles);
+
+   print_possible(data);
+}
+
+function jcopy(a){ return JSON.parse(JSON.stringify(a)); }
+
+function print_possible(data){
+   data.forEach(function(d){
+      for(let i = 0; i < 7; i++){
+         p(`bits:5 slice:${d.slices} shift:${i} : `, bits_to_str(d.data, i, 5));
+         // p(`bits:6 slice:${d.slices} shift:${i} : `, bits_to_str(d.data, i, 6));
+         // p(`bits:7 slice:${d.slices} shift:${i} : `, bits_to_str(d.data, i, 7));
+         // p(`bits:8 slice:${d.slices} shift:${i} : `, bits_to_str(d.data, i, 8));
+      }
+   });
+}
+
+
+function bits_to_str(bits, shift, byte_len){ return bits_to_chars(bits, shift, byte_len).join(""); }
+
+const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
+
+function bits_to_chars(bits, shift, byte_len){
+   return bits_to_bytes(bits, shift, byte_len).map(function(v){
+      if(byte_len < 8){ return alphabet[v] }
+      else{ return String.fromCharCode(v); }
+   });
+}
+
+function bits_to_bytes(bits, shift, byte_len){
+   // p("bits: ", bits);
+   bits = jcopy(bits);
+   // p(`bits.${shift}: `, bits);
+   for(let i = 0; i < shift; i++){ bits.push(bits.shift()); }
+   // p(`bits.${shift}: `, bits);
+
+   const bytes = [];
+
+   while(bits.length){
+      let byte = 0;
+      // for(let i = byte_len; i >= 0; i--){ byte += bits.shift() << i; }
+      for(let i = 0; i < byte_len; i++){ byte += bits.shift() << i; }
+      bytes.push(byte);
+   }
+   return(bytes);
+}
+
+
+(function(){ main().then(); })();
