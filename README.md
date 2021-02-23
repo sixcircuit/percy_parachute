@@ -7,3 +7,6 @@ I could probably have made better progress by hand (and with a better image) but
 
 I've updated this to do apply a bunch of bit transformations to the (good) data I got from https://pastebin.com/13CyyWjj.
 
+you don't need to install anything unless you want to mess with the image manipulations.
+
+run: `./bin/process`
