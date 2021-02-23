@@ -95,7 +95,7 @@ async function main(){
 
    const data = [];
 
-   for(let i = 85; i < 100; i++){
+   for(let i = 75; i < 90; i++){
       const current = [];
       data.push({ slices: i, data: current });
 
@@ -123,9 +123,9 @@ function print_possible(data){
    data.forEach(function(d){
       for(let i = 0; i < 7; i++){
          p(`bits:5 slice:${d.slices} shift:${i} : `, bits_to_str(d.data, i, 5));
-         // p(`bits:6 slice:${d.slices} shift:${i} : `, bits_to_str(d.data, i, 6));
-         // p(`bits:7 slice:${d.slices} shift:${i} : `, bits_to_str(d.data, i, 7));
-         // p(`bits:8 slice:${d.slices} shift:${i} : `, bits_to_str(d.data, i, 8));
+         p(`bits:6 slice:${d.slices} shift:${i} : `, bits_to_str(d.data, i, 6));
+         p(`bits:7 slice:${d.slices} shift:${i} : `, bits_to_str(d.data, i, 7));
+         p(`bits:8 slice:${d.slices} shift:${i} : `, bits_to_str(d.data, i, 8));
       }
    });
 }
@@ -153,8 +153,8 @@ function bits_to_bytes(bits, shift, byte_len){
 
    while(bits.length){
       let byte = 0;
-      // for(let i = byte_len; i >= 0; i--){ byte += bits.shift() << i; }
-      for(let i = 0; i < byte_len; i++){ byte += bits.shift() << i; }
+      for(let i = byte_len; i >= 0; i--){ byte += bits.shift() << i; }
+      // for(let i = 0; i < byte_len; i++){ byte += bits.shift() << i; }
       bytes.push(byte);
    }
    return(bytes);
